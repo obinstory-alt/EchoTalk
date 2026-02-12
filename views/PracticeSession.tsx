@@ -27,6 +27,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
     }
+    // Important: Resume context on user gesture for mobile browsers
     if (audioContextRef.current.state === 'suspended') {
       audioContextRef.current.resume();
     }
@@ -36,10 +37,13 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
   const speak = async (text: string) => {
     if (isSpeaking) return;
     setIsSpeaking(true);
+    
+    // Resume AudioContext as part of user interaction
+    const ctx = getAudioContext();
+
     try {
       const base64Audio = await getGeminiSpeech(text);
       if (base64Audio) {
-        const ctx = getAudioContext();
         const buffer = await decodeAudioData(base64Audio, ctx);
         const source = ctx.createBufferSource();
         source.buffer = buffer;
@@ -60,10 +64,10 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
     }
   };
 
-  const handleSpeechInput = async (base64: string) => {
+  const handleSpeechInput = async (base64: string, mimeType: string) => {
     setIsEvaluating(true);
     setEvaluation(null);
-    const result = await evaluatePronunciation(base64, currentLine.text, settings.targetAccuracy);
+    const result = await evaluatePronunciation(base64, currentLine.text, settings.targetAccuracy, mimeType);
     setEvaluation(result);
     setIsEvaluating(false);
   };
