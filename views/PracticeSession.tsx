@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Dialogue, PracticeStep, UserSettings, EvaluationResult } from '../types.ts';
-import { ChevronLeft, Volume2, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { ChevronLeft, Volume2, CheckCircle, XCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { AudioRecorder } from '../components/AudioRecorder.tsx';
-import { evaluatePronunciation } from '../services/geminiService.ts';
+import { evaluatePronunciation, getGeminiSpeech, decodeAudioData } from '../services/geminiService.ts';
 
 interface PracticeSessionProps {
   dialogue: Dialogue;
@@ -17,12 +17,52 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
   const [lineIndex, setLineIndex] = useState(0);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [userRole, setUserRole] = useState<'A' | 'B'>('A');
 
+  const audioContextRef = useRef<AudioContext | null>(null);
   const currentLine = dialogue.lines[lineIndex];
+
+  const getAudioContext = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+    return audioContextRef.current;
+  };
+
+  const speak = async (text: string) => {
+    if (isSpeaking) return;
+    setIsSpeaking(true);
+    try {
+      const base64Audio = await getGeminiSpeech(text);
+      if (base64Audio) {
+        const ctx = getAudioContext();
+        const buffer = await decodeAudioData(base64Audio, ctx);
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.onended = () => setIsSpeaking(false);
+        source.start();
+      } else {
+        // Fallback to browser TTS if Gemini fails
+        const synth = window.speechSynthesis;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US';
+        utterance.onend = () => setIsSpeaking(false);
+        synth.speak(utterance);
+      }
+    } catch (e) {
+      console.error("Playback error", e);
+      setIsSpeaking(false);
+    }
+  };
 
   const handleSpeechInput = async (base64: string) => {
     setIsEvaluating(true);
+    setEvaluation(null);
     const result = await evaluatePronunciation(base64, currentLine.text, settings.targetAccuracy);
     setEvaluation(result);
     setIsEvaluating(false);
@@ -50,25 +90,21 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
     }
   };
 
-  const speak = (text: string) => {
-    const synth = window.speechSynthesis;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    synth.speak(utterance);
-  };
-
   const renderMastery = () => (
     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
       <div className="text-center space-y-2">
         <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-bold rounded-full">STEP 1: SENTENCE MASTERY</span>
         <h2 className="text-xl font-bold text-slate-800">문장을 듣고 따라하세요</h2>
       </div>
-      <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative group">
+      <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative group min-h-[160px] flex flex-col justify-center">
         <button 
           onClick={() => speak(currentLine.text)}
-          className="absolute top-4 right-4 p-2 bg-blue-50 text-blue-600 rounded-full hover:bg-blue-100"
+          disabled={isSpeaking}
+          className={`absolute top-4 right-4 p-3 rounded-full transition-all ${
+            isSpeaking ? 'bg-blue-100 text-blue-400' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-90 shadow-sm'
+          }`}
         >
-          <Volume2 className="w-5 h-5" />
+          {isSpeaking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Volume2 className="w-5 h-5" />}
         </button>
         <p className="text-2xl font-bold text-center text-slate-900 leading-tight mb-4">
           {currentLine.text}
@@ -79,20 +115,23 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
       </div>
       <AudioRecorder onRecordingComplete={handleSpeechInput} isLoading={isEvaluating} />
       {evaluation && (
-        <div className={`p-6 rounded-2xl border ${evaluation.score >= settings.targetAccuracy ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+        <div className={`p-6 rounded-2xl border animate-in slide-in-from-top-4 duration-300 ${evaluation.score >= settings.targetAccuracy ? 'bg-emerald-50 border-emerald-100 shadow-sm' : 'bg-red-50 border-red-100 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="font-bold text-slate-800">정확도: {evaluation.score}%</span>
+            <span className={`font-bold text-lg ${evaluation.score >= settings.targetAccuracy ? 'text-emerald-700' : 'text-red-700'}`}>
+              정확도: {evaluation.score}%
+            </span>
             {evaluation.score >= settings.targetAccuracy ? (
-              <CheckCircle className="text-emerald-500" />
+              <CheckCircle className="text-emerald-500 w-6 h-6" />
             ) : (
-              <XCircle className="text-red-500" />
+              <XCircle className="text-red-500 w-6 h-6" />
             )}
           </div>
-          <p className="text-sm text-slate-700 mb-3">{evaluation.feedback}</p>
+          <p className="text-slate-700 mb-3 leading-relaxed">{evaluation.feedback}</p>
           {evaluation.mispronouncedWords.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 mb-2">
+              <span className="text-xs text-slate-400 w-full mb-1">다시 연습해 보세요:</span>
               {evaluation.mispronouncedWords.map(word => (
-                <span key={word} className="px-2 py-1 bg-red-200 text-red-800 text-xs rounded-md font-medium">
+                <span key={word} className="px-2 py-1 bg-red-200 text-red-800 text-xs rounded-md font-bold">
                   {word}
                 </span>
               ))}
@@ -101,13 +140,13 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
           {evaluation.score >= settings.targetAccuracy ? (
             <button 
               onClick={handleNextLine}
-              className="mt-4 w-full py-3 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2"
+              className="mt-4 w-full py-4 bg-emerald-600 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-transform"
             >
-              다음 문장 <ArrowRight className="w-4 h-4" />
+              다음 문장 <ArrowRight className="w-5 h-5" />
             </button>
           ) : (
-            <div className="mt-4 text-center text-red-600 text-sm font-medium animate-bounce">
-              목표 점수({settings.targetAccuracy}%) 미달입니다. 다시 시도하세요!
+            <div className="mt-4 text-center text-red-600 text-sm font-bold animate-pulse">
+              목표 점수({settings.targetAccuracy}%) 도달을 위해 한 번 더!
             </div>
           )}
         </div>
@@ -125,17 +164,18 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
         {currentLine.text.split(' ').map((word, idx) => (
           <button 
             key={idx}
+            disabled={isSpeaking}
             onClick={() => speak(word.replace(/[.,?!]/g, ''))}
-            className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:bg-slate-50 active:scale-95 transition-all"
+            className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
           >
-            <span className="font-semibold text-slate-800">{word}</span>
-            <Volume2 className="w-4 h-4 text-slate-400" />
+            <span className="font-semibold text-slate-800 truncate mr-2">{word}</span>
+            {isSpeaking ? <Loader2 className="w-4 h-4 animate-spin text-purple-300" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
           </button>
         ))}
       </div>
       <button 
         onClick={handleNextLine}
-        className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-lg"
+        className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-lg shadow-purple-100 active:scale-95 transition-transform"
       >
         {lineIndex < dialogue.lines.length - 1 ? '다음 문장 단어 보기' : '롤플레잉 시작하기'}
       </button>
@@ -153,14 +193,18 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
           <div key={idx} className={`flex ${line.speaker === userRole ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm ${
               line.speaker === userRole 
-                ? 'bg-blue-600 text-white rounded-br-none' 
-                : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none'
+                ? 'bg-blue-600 text-white rounded-br-none shadow-blue-100' 
+                : 'bg-white border border-slate-200 text-slate-800 rounded-bl-none shadow-slate-100'
             }`}>
               <div className="text-[10px] uppercase font-bold mb-1 opacity-70">Speaker {line.speaker}</div>
               <p className="font-medium">{line.text}</p>
               {line.speaker !== userRole && (
-                <button onClick={() => speak(line.text)} className="mt-2 text-xs flex items-center gap-1 opacity-80 underline underline-offset-2">
-                  <Volume2 className="w-3 h-3" /> 듣기
+                <button 
+                  onClick={() => speak(line.text)} 
+                  disabled={isSpeaking}
+                  className="mt-2 text-xs flex items-center gap-1 opacity-80 underline underline-offset-2 hover:opacity-100"
+                >
+                  {isSpeaking ? <Loader2 className="w-3 h-3 animate-spin" /> : <Volume2 className="w-3 h-3" />} 듣기
                 </button>
               )}
             </div>
@@ -170,7 +214,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
       <div className="pt-4 border-t border-slate-100">
         <button 
           onClick={handleNextLine}
-          className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2"
+          className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-100 flex items-center justify-center gap-2 active:scale-95 transition-transform"
         >
           {userRole === 'A' ? '역할 바꿔서 진행하기' : '학습 완료'}
           <ArrowRight className="w-5 h-5" />
