@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
-import { Dialogue, PracticeStep, UserSettings, EvaluationResult } from '../types';
-import { ChevronLeft, Volume2, CheckCircle, XCircle, ArrowRight, RefreshCw } from 'lucide-react';
-import { AudioRecorder } from '../components/AudioRecorder';
-import { evaluatePronunciation } from '../services/geminiService';
+import React, { useState } from 'react';
+import { Dialogue, PracticeStep, UserSettings, EvaluationResult } from '../types.ts';
+import { ChevronLeft, Volume2, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { AudioRecorder } from '../components/AudioRecorder.tsx';
+import { evaluatePronunciation } from '../services/geminiService.ts';
 
 interface PracticeSessionProps {
   dialogue: Dialogue;
@@ -17,9 +17,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
   const [lineIndex, setLineIndex] = useState(0);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
-  const [showBibleVerse, setShowBibleVerse] = useState(false);
-  
-  // For Roleplay
   const [userRole, setUserRole] = useState<'A' | 'B'>('A');
 
   const currentLine = dialogue.lines[lineIndex];
@@ -66,7 +63,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
         <span className="px-3 py-1 bg-blue-100 text-blue-600 text-xs font-bold rounded-full">STEP 1: SENTENCE MASTERY</span>
         <h2 className="text-xl font-bold text-slate-800">문장을 듣고 따라하세요</h2>
       </div>
-
       <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative group">
         <button 
           onClick={() => speak(currentLine.text)}
@@ -81,9 +77,7 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
           {currentLine.translation}
         </p>
       </div>
-
       <AudioRecorder onRecordingComplete={handleSpeechInput} isLoading={isEvaluating} />
-
       {evaluation && (
         <div className={`p-6 rounded-2xl border ${evaluation.score >= settings.targetAccuracy ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
           <div className="flex items-center justify-between mb-2">
@@ -95,7 +89,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
             )}
           </div>
           <p className="text-sm text-slate-700 mb-3">{evaluation.feedback}</p>
-          
           {evaluation.mispronouncedWords.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {evaluation.mispronouncedWords.map(word => (
@@ -105,7 +98,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
               ))}
             </div>
           )}
-
           {evaluation.score >= settings.targetAccuracy ? (
             <button 
               onClick={handleNextLine}
@@ -129,7 +121,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
         <span className="px-3 py-1 bg-purple-100 text-purple-600 text-xs font-bold rounded-full">STEP 2: WORD PRACTICE</span>
         <h2 className="text-xl font-bold text-slate-800">주요 단어 집중 연습</h2>
       </div>
-
       <div className="grid grid-cols-2 gap-4">
         {currentLine.text.split(' ').map((word, idx) => (
           <button 
@@ -142,7 +133,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
           </button>
         ))}
       </div>
-
       <button 
         onClick={handleNextLine}
         className="w-full py-4 bg-purple-600 text-white rounded-2xl font-bold shadow-lg"
@@ -158,13 +148,9 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
         <span className="px-3 py-1 bg-orange-100 text-orange-600 text-xs font-bold rounded-full">STEP 3: ROLE PLAY</span>
         <h2 className="text-xl font-bold text-slate-800">당신은 <span className="text-orange-600 font-extrabold">{userRole}</span> 역할입니다</h2>
       </div>
-
       <div className="space-y-4">
         {dialogue.lines.map((line, idx) => (
-          <div 
-            key={idx} 
-            className={`flex ${line.speaker === userRole ? 'justify-end' : 'justify-start'}`}
-          >
+          <div key={idx} className={`flex ${line.speaker === userRole ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] p-4 rounded-2xl shadow-sm ${
               line.speaker === userRole 
                 ? 'bg-blue-600 text-white rounded-br-none' 
@@ -181,12 +167,10 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
           </div>
         ))}
       </div>
-
       <div className="pt-4 border-t border-slate-100">
-        <p className="text-center text-sm text-slate-500 mb-4">전체 대화를 한 번 더 연습하며 마무리하세요.</p>
         <button 
           onClick={handleNextLine}
-          className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg shadow-orange-100 flex items-center justify-center gap-2"
+          className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2"
         >
           {userRole === 'A' ? '역할 바꿔서 진행하기' : '학습 완료'}
           <ArrowRight className="w-5 h-5" />
@@ -211,7 +195,6 @@ export const PracticeSession: React.FC<PracticeSessionProps> = ({ dialogue, sett
           </div>
         </div>
       </header>
-
       <div className="p-6 flex-grow">
         {currentStep === PracticeStep.SENTENCE_MASTERY && renderMastery()}
         {currentStep === PracticeStep.WORD_PRACTICE && renderWordPractice()}
