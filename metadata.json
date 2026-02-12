@@ -1,0 +1,7 @@
+{
+  "name": "EchoTalk - AI Pronunciation & Dialogue Master",
+  "description": "An interactive language learning application that helps users master 1,000 sentences through word practice, sentence mastery, and role-playing with real-time AI pronunciation feedback.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
