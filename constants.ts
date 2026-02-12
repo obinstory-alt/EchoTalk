@@ -1,5 +1,5 @@
 
-import { Dialogue } from './types';
+import { Dialogue } from './types.ts';
 
 export const DIALOGUE_DB: Dialogue[] = [
   {
