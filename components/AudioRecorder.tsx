@@ -3,19 +3,34 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Loader2 } from 'lucide-react';
 
 interface AudioRecorderProps {
-  onRecordingComplete: (base64: string) => void;
+  onRecordingComplete: (base64: string, mimeType: string) => void;
   isLoading: boolean;
 }
 
 export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplete, isLoading }) => {
   const [isRecording, setIsRecording] = useState(false);
+  const [supportedMimeType, setSupportedMimeType] = useState('audio/webm');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    // Detect supported mime type for the current browser (especially for iOS Safari)
+    if (typeof MediaRecorder !== 'undefined') {
+      const types = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'];
+      for (const type of types) {
+        if (MediaRecorder.isTypeSupported(type)) {
+          setSupportedMimeType(type);
+          break;
+        }
+      }
+    }
+  }, []);
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const options = { mimeType: supportedMimeType };
+      const mediaRecorder = new MediaRecorder(stream, options);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -26,12 +41,13 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: supportedMimeType });
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         reader.onloadend = () => {
-          const base64String = (reader.result as string).split(',')[1];
-          onRecordingComplete(base64String);
+          const result = reader.result as string;
+          const base64String = result.split(',')[1];
+          onRecordingComplete(base64String, supportedMimeType);
         };
         stream.getTracks().forEach(track => track.stop());
       };
@@ -40,7 +56,7 @@ export const AudioRecorder: React.FC<AudioRecorderProps> = ({ onRecordingComplet
       setIsRecording(true);
     } catch (err) {
       console.error("Error accessing microphone:", err);
-      alert("마이크 접근 권한이 필요합니다.");
+      alert("마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크 권한을 허용해주세요.");
     }
   };
 
