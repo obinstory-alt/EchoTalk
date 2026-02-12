@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { UserProgress, UserSettings } from '../types';
+import { UserProgress, UserSettings } from '../types.ts';
 import { Play, Settings as SettingsIcon, Trophy, Flame, Target } from 'lucide-react';
 
 interface HomeProps {
@@ -26,7 +26,6 @@ export const Home: React.FC<HomeProps> = ({ progress, settings, onStart, onOpenS
         </button>
       </header>
 
-      {/* Main Stats */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-blue-50 p-4 rounded-3xl border border-blue-100 flex flex-col items-center">
           <Trophy className="w-8 h-8 text-blue-600 mb-2" />
@@ -40,7 +39,6 @@ export const Home: React.FC<HomeProps> = ({ progress, settings, onStart, onOpenS
         </div>
       </div>
 
-      {/* Progress Bars */}
       <section className="space-y-6">
         <div>
           <div className="flex justify-between mb-2">
@@ -85,7 +83,6 @@ export const Home: React.FC<HomeProps> = ({ progress, settings, onStart, onOpenS
         </div>
       </section>
 
-      {/* CTA */}
       <button 
         onClick={onStart}
         className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-200 flex items-center justify-center gap-2 transition-all active:scale-95"
