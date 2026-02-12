@@ -15,7 +15,8 @@ function base64ToUint8Array(base64: string): Uint8Array {
 export async function evaluatePronunciation(
   audioBase64: string,
   referenceText: string,
-  targetAccuracy: number
+  targetAccuracy: number,
+  mimeType: string = 'audio/webm'
 ): Promise<EvaluationResult> {
   try {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -26,7 +27,7 @@ export async function evaluatePronunciation(
           parts: [
             {
               inlineData: {
-                mimeType: 'audio/webm',
+                mimeType: mimeType,
                 data: audioBase64
               }
             },
@@ -98,8 +99,10 @@ export async function decodeAudioData(
   base64Data: string,
   audioContext: AudioContext
 ): Promise<AudioBuffer> {
-  const data = base64ToUint8Array(base64Data);
-  const dataInt16 = new Int16Array(data.buffer);
+  const bytes = base64ToUint8Array(base64Data);
+  // Gemini TTS returns raw 16-bit PCM at 24kHz.
+  // We need to ensure the buffer is correctly interpreted as Int16.
+  const dataInt16 = new Int16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2);
   const frameCount = dataInt16.length;
   const buffer = audioContext.createBuffer(1, frameCount, 24000);
   const channelData = buffer.getChannelData(0);
