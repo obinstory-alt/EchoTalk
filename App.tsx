@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { AppState, UserSettings, UserProgress, Dialogue, PracticeStep, PracticeStep as Step } from './types';
-import { DIALOGUE_DB, STORAGE_KEYS } from './constants';
-import { Layout } from './components/Layout';
-import { Home } from './views/Home';
-import { PracticeSession } from './views/PracticeSession';
-import { Settings } from './views/Settings';
-import { Completion } from './views/Completion';
+import React, { useState, useEffect } from 'react';
+import { AppState, UserSettings, UserProgress } from './types.ts';
+import { DIALOGUE_DB, STORAGE_KEYS } from './constants.ts';
+import { Layout } from './components/Layout.tsx';
+import { Home } from './views/Home.tsx';
+import { PracticeSession } from './views/PracticeSession.tsx';
+import { Settings } from './views/Settings.tsx';
+import { Completion } from './views/Completion.tsx';
 
 const App: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<AppState>(AppState.HOME);
@@ -21,7 +21,6 @@ const App: React.FC = () => {
     currentDialogueId: DIALOGUE_DB[0].id
   });
 
-  // Load data
   useEffect(() => {
     const savedSettings = localStorage.getItem(STORAGE_KEYS.SETTINGS);
     const savedProgress = localStorage.getItem(STORAGE_KEYS.PROGRESS);
@@ -30,7 +29,6 @@ const App: React.FC = () => {
     if (savedProgress) {
       const parsed = JSON.parse(savedProgress);
       const today = new Date().toISOString().split('T')[0];
-      // Reset daily sets if it's a new day
       if (parsed.lastActiveDate !== today) {
         parsed.dailySetsDone = 0;
         parsed.lastActiveDate = today;
@@ -39,7 +37,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Save data
   useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
     localStorage.setItem(STORAGE_KEYS.PROGRESS, JSON.stringify(progress));
