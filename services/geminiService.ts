@@ -1,8 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { EvaluationResult } from "../types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { EvaluationResult } from "../types.ts";
 
 export async function evaluatePronunciation(
   audioBase64: string,
@@ -10,6 +8,7 @@ export async function evaluatePronunciation(
   targetAccuracy: number
 ): Promise<EvaluationResult> {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: {
@@ -47,7 +46,6 @@ export async function evaluatePronunciation(
     return JSON.parse(response.text.trim());
   } catch (error) {
     console.error("Gemini Evaluation Error:", error);
-    // Fallback for demo or error scenarios
     return {
       score: 75,
       feedback: "오디오 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
